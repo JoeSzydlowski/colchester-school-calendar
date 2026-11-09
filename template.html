@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Colchester School Calendar</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+/* Layout: a school planner — sticky header with filters, then an agenda grouped by day or a month grid. */
+:root {
+  --paper: #f6f7f9;
+  --card: #ffffff;
+  --ink: #18202b;
+  --muted: #5d6877;
+  --rule: #dde2e8;
+  --accent: #2d4f8f;
+  --today: #fff4d6;
+  --district: #5b6b7a;
+  --jjis: #1f7a5a;
+  --wjjms: #b5541c;
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", sans-serif;
+  --body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #11161d; --card: #19202a; --ink: #e8ecf1; --muted: #9aa5b3; --rule: #2a3340;
+    --accent: #8fb0ee; --today: #3a3320; --district: #9fb0c0; --jjis: #5cc59c; --wjjms: #f0915a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #11161d; --card: #19202a; --ink: #e8ecf1; --muted: #9aa5b3; --rule: #2a3340;
+  --accent: #8fb0ee; --today: #3a3320; --district: #9fb0c0; --jjis: #5cc59c; --wjjms: #f0915a;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 16px/1.5 var(--body); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--card); }
+a { color: inherit; }
+.wrap { max-width: 1100px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+header.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--card); border-bottom: 1px solid var(--rule); }
+header.top .wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; padding-block: 14px; }
+.brand { display: flex; flex-direction: column; min-width: 0; margin-right: auto; }
+h1 { font: 700 clamp(1.3rem, 1rem + 1.4vw, 1.8rem)/1.1 var(--display); margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
+.updated { color: var(--muted); font-size: 0.82rem; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--rule); background: var(--card); color: var(--ink);
+  border-radius: 999px; padding: 5px 12px 5px 10px; font: 700 0.85rem var(--body); cursor: pointer; }
+.chip .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
+.chip[aria-pressed="false"] { color: var(--muted); }
+.chip[aria-pressed="false"] .dot { background: transparent; box-shadow: inset 0 0 0 2px var(--c); }
+.chip:focus-visible, .seg button:focus-visible, .nav button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; background: transparent; color: var(--muted); font: 700 0.85rem var(--body); padding: 6px 12px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--card); }
+
+main .wrap { padding-block: 20px 48px; display: grid; gap: 20px; }
+.bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.nav { display: flex; align-items: center; gap: 8px; }
+.nav h2 { font: 700 1.25rem var(--display); margin: 0; min-width: 9.5em; }
+.nav button, .linkbtn { border: 1px solid var(--rule); background: var(--card); color: var(--ink); border-radius: 8px; padding: 5px 11px; font: 700 0.85rem var(--body); cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+.subscribe { color: var(--muted); font-size: 0.85rem; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+/* Agenda */
+.agenda { display: grid; gap: 4px; }
+.day { display: grid; grid-template-columns: 5.5rem 1fr; gap: 16px; padding: 14px 0; border-top: 1px solid var(--rule); }
+.day.is-today { background: var(--today); border-radius: 8px; padding-inline: 10px; border-top-color: transparent; }
+.date { font-variant-numeric: tabular-nums; }
+.date .dow { display: block; text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.72rem; color: var(--muted); font-weight: 700; }
+.date .num { font: 700 1.9rem/1 var(--display); }
+.date .mon { font-size: 0.8rem; color: var(--muted); }
+.events { display: grid; gap: 10px; min-width: 0; }
+.ev { display: grid; grid-template-columns: 4px 1fr; gap: 12px; min-width: 0; }
+.ev .stripe { border-radius: 2px; background: var(--c); }
+.ev .t { font-weight: 700; overflow-wrap: anywhere; }
+.ev .t a { text-decoration-color: color-mix(in srgb, var(--ink) 30%, transparent); text-underline-offset: 3px; }
+.ev .t a:hover { text-decoration-color: var(--accent); color: var(--accent); }
+.ev .meta { color: var(--muted); font-size: 0.86rem; display: flex; flex-wrap: wrap; gap: 4px 12px; font-variant-numeric: tabular-nums; }
+.tag { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--c); }
+.empty { color: var(--muted); padding: 24px 0; }
+
+/* Month grid */
+.month { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; background: var(--card); }
+.month .hd { padding: 8px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--rule); }
+.cell { min-height: 7.5rem; padding: 6px; border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule); min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.cell:nth-child(7n) { border-right: 0; }
+.cell.out { background: var(--paper); }
+.cell.out .n { color: var(--muted); opacity: 0.6; }
+.cell.is-today { background: var(--today); }
+.cell .n { font: 700 0.95rem var(--display); font-variant-numeric: tabular-nums; }
+.pill { display: block; font-size: 0.76rem; line-height: 1.25; padding: 2px 5px; border-radius: 4px; border-left: 3px solid var(--c);
+  background: color-mix(in srgb, var(--c) 12%, transparent); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pill:hover { background: color-mix(in srgb, var(--c) 24%, transparent); }
+.more { font-size: 0.74rem; color: var(--muted); border: 0; background: none; padding: 0 4px; text-align: left; cursor: pointer; font-family: inherit; }
+@media (max-width: 720px) {
+  .cell { min-height: 4.2rem; padding: 4px; }
+  .pill { font-size: 0; padding: 0; height: 6px; border-left: 0; background: var(--c); }
+  .month .hd { padding: 6px 4px; font-size: 0.62rem; }
+  .day { grid-template-columns: 4rem 1fr; gap: 12px; }
+}
+footer { color: var(--muted); font-size: 0.82rem; }
+@media (prefers-reduced-motion: no-preference) { .chip, .seg button, .pill { transition: background-color .15s, color .15s; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="brand">
+      <h1 id="title">Colchester School Calendar</h1>
+      <span class="updated" id="updated"></span>
+    </div>
+    <div class="controls" id="filters" role="group" aria-label="Show schools"></div>
+    <div class="seg" role="group" aria-label="View">
+      <button type="button" id="v-list" aria-pressed="true">Upcoming</button>
+      <button type="button" id="v-month" aria-pressed="false">Month</button>
+    </div>
+  </div>
+</header>
+<main>
+  <div class="wrap">
+    <div class="bar">
+      <div class="nav" id="monthnav" hidden>
+        <button type="button" id="prev" aria-label="Previous month">‹</button>
+        <h2 id="mlabel"></h2>
+        <button type="button" id="next" aria-label="Next month">›</button>
+        <button type="button" id="todayBtn">Today</button>
+      </div>
+      <div class="nav" id="listnav">
+        <h2 id="llabel">Coming up</h2>
+        <button type="button" id="showPast">Show past events</button>
+      </div>
+      <div class="subscribe">
+        <a class="linkbtn" id="subLink" href="calendar.ics">Add to my phone's calendar</a>
+      </div>
+    </div>
+    <section id="view" aria-live="polite"></section>
+    <footer id="foot"></footer>
+  </div>
+</main>
+<script>
+const DATA = /*__DATA__*/null;
+(function () {
+  const TZ = "America/New_York";
+  const groups = DATA.groups;
+  let active = new Set(Object.keys(groups));
+  let view = "list", showPast = false;
+  try { const s = JSON.parse(localStorage.getItem("schoolcal") || "{}"); if (s.view) view = s.view; if (Array.isArray(s.active) && s.active.length) active = new Set(s.active.filter(k => groups[k])); } catch (e) {}
+  const save = () => { try { localStorage.setItem("schoolcal", JSON.stringify({ view, active: [...active] })); } catch (e) {} };
+
+  const fmtDay = (d, o) => new Intl.DateTimeFormat("en-US", Object.assign({ timeZone: TZ }, o)).format(d);
+  const dayKey = ev => ev.start.slice(0, 10);
+  const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+  const keyToDate = k => new Date(k + "T12:00:00");
+  const timeOf = iso => new Date(iso).toLocaleTimeString("en-US", { timeZone: TZ, hour: "numeric", minute: "2-digit" });
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const color = g => `var(--${g}, ${groups[g].color})`;
+
+  // Expand multi-day all-day events onto each day they cover.
+  const byDay = new Map();
+  for (const ev of DATA.events) {
+    let k = dayKey(ev);
+    const endK = ev.allDay ? ev.end.slice(0, 10) : k;
+    let guard = 0;
+    do {
+      if (!byDay.has(k)) byDay.set(k, []);
+      byDay.get(k).push(ev);
+      const d = keyToDate(k); d.setDate(d.getDate() + 1);
+      k = d.toISOString().slice(0, 10);
+    } while (ev.allDay && k < endK && ++guard < 60);
+  }
+  const visible = ev => ev.groups.some(g => active.has(g));
+  const sortEv = (a, b) => (b.allDay - a.allDay) || a.start.localeCompare(b.start) || a.title.localeCompare(b.title);
+
+  document.getElementById("title").textContent = DATA.title;
+  document.title = DATA.title;
+  const upd = new Date(DATA.updated);
+  document.getElementById("updated").textContent = "Updated " + fmtDay(upd, { weekday: "short", month: "short", day: "numeric" }) + " at " + timeOf(DATA.updated);
+  document.getElementById("foot").textContent = `${DATA.events.length} events from the Colchester Public Schools and WJ Johnston calendars (the same ones ParentSquare shows). Updates every morning. Click an event title to open it.`;
+
+  const filters = document.getElementById("filters");
+  const used = new Set(DATA.events.flatMap(e => e.groups));
+  for (const [k, g] of Object.entries(groups)) {
+    if (!used.has(k)) { continue; }
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "chip"; b.id = "f-" + k; b.style.setProperty("--c", color(k));
+    b.innerHTML = `<span class="dot"></span>${esc(g.label)}`;
+    b.addEventListener("click", () => { active.has(k) ? active.delete(k) : active.add(k); if (!active.size) active.add(k); save(); render(); });
+    filters.appendChild(b);
+  }
+
+  function evLine(ev) {
+    const g = ev.groups[0];
+    const when = ev.allDay ? "All day" : `${timeOf(ev.start)} – ${timeOf(ev.end)}`;
+    const tags = ev.groups.map(x => `<span class="tag" style="--c:${color(x)}">${esc(groups[x].short)}</span>`).join(" ");
+    const extra = [ev.location ? esc(ev.location) : "", ev.info ? `<a href="${esc(ev.info)}" target="_blank" rel="noopener">More info</a>` : ""].filter(Boolean).join(" · ");
+    return `<div class="ev" style="--c:${color(g)}"><span class="stripe"></span><div>
+      <div class="t"><a href="${esc(ev.link)}" target="_blank" rel="noopener">${esc(ev.title)}</a></div>
+      <div class="meta"><span>${when}</span>${tags}${extra ? `<span>${extra}</span>` : ""}</div></div></div>`;
+  }
+
+  function renderList() {
+    const keys = [...byDay.keys()].sort().filter(k => showPast ? k < todayKey : k >= todayKey);
+    if (showPast) keys.reverse();
+    let html = "", count = 0;
+    for (const k of keys) {
+      const evs = byDay.get(k).filter(visible).sort(sortEv);
+      if (!evs.length) continue;
+      const d = keyToDate(k);
+      html += `<div class="day${k === todayKey ? " is-today" : ""}"><div class="date"><span class="dow">${k === todayKey ? "Today" : fmtDay(d, { weekday: "short" })}</span><span class="num">${d.getDate()}</span> <span class="mon">${fmtDay(d, { month: "short", year: k.slice(0, 4) !== todayKey.slice(0, 4) ? "numeric" : undefined })}</span></div><div class="events">${evs.map(evLine).join("")}</div></div>`;
+      if (++count > 400) break;
+    }
+    return `<div class="agenda">${html || `<p class="empty">No events for the schools you picked.</p>`}</div>`;
+  }
+
+  let cursor = keyToDate(todayKey); cursor.setDate(1);
+  function renderMonth() {
+    const y = cursor.getFullYear(), m = cursor.getMonth();
+    document.getElementById("mlabel").textContent = fmtDay(cursor, { month: "long", year: "numeric" });
+    const first = new Date(y, m, 1), start = new Date(first); start.setDate(1 - first.getDay());
+    let html = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(d => `<div class="hd">${d}</div>`).join("");
+    for (let i = 0; i < 42; i++) {
+      const d = new Date(start); d.setDate(start.getDate() + i);
+      if (i === 35 && d.getMonth() !== m) break;
+      const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const evs = (byDay.get(k) || []).filter(visible).sort(sortEv);
+      const shown = evs.slice(0, 4).map(ev => `<a class="pill" style="--c:${color(ev.groups[0])}" href="${esc(ev.link)}" target="_blank" rel="noopener" title="${esc(ev.title)}">${ev.allDay ? "" : timeOf(ev.start).replace(":00", "").replace(" ", "").toLowerCase() + " "}${esc(ev.title)}</a>`).join("");
+      const more = evs.length > 4 ? `<button type="button" class="more" data-k="${k}">+${evs.length - 4} more</button>` : "";
+      html += `<div class="cell${d.getMonth() !== m ? " out" : ""}${k === todayKey ? " is-today" : ""}"><span class="n">${d.getDate()}</span>${shown}${more}</div>`;
+    }
+    return `<div class="month">${html}</div>`;
+  }
+
+  const viewEl = document.getElementById("view");
+  function render() {
+    for (const k of Object.keys(groups)) document.getElementById("f-" + k)?.setAttribute("aria-pressed", active.has(k));
+    document.getElementById("v-list").setAttribute("aria-pressed", view === "list");
+    document.getElementById("v-month").setAttribute("aria-pressed", view === "month");
+    document.getElementById("monthnav").hidden = view !== "month";
+    document.getElementById("listnav").hidden = view !== "list";
+    document.getElementById("llabel").textContent = showPast ? "Past events" : "Coming up";
+    document.getElementById("showPast").textContent = showPast ? "Show upcoming events" : "Show past events";
+    viewEl.innerHTML = view === "list" ? renderList() : renderMonth();
+  }
+  viewEl.addEventListener("click", e => {
+    const b = e.target.closest(".more"); if (!b) return;
+    const k = b.dataset.k; view = "list"; showPast = k < todayKey; render();
+    const el = [...document.querySelectorAll(".day")].find(x => x.querySelector(".num")); if (el) el.scrollIntoView();
+  });
+  document.getElementById("v-list").onclick = () => { view = "list"; save(); render(); };
+  document.getElementById("v-month").onclick = () => { view = "month"; save(); render(); };
+  document.getElementById("showPast").onclick = () => { showPast = !showPast; render(); };
+  document.getElementById("prev").onclick = () => { cursor.setMonth(cursor.getMonth() - 1); render(); };
+  document.getElementById("next").onclick = () => { cursor.setMonth(cursor.getMonth() + 1); render(); };
+  document.getElementById("todayBtn").onclick = () => { cursor = keyToDate(todayKey); cursor.setDate(1); render(); };
+  render();
+})();
+</script>
+</body>
+</html>
