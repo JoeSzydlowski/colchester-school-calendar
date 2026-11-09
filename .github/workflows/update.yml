@@ -31,6 +31,8 @@ jobs:
       - name: Build calendar from school feeds
         env:
           PS_CALENDAR_TOKEN: ${{ secrets.PS_CALENDAR_TOKEN }}
+          PS_EMAIL: ${{ secrets.PS_EMAIL }}
+          PS_PASSWORD: ${{ secrets.PS_PASSWORD }}
         run: python build.py
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
