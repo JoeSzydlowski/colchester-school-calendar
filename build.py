@@ -167,6 +167,16 @@ def main():
     else:
         print("PS_EMAIL / PS_PASSWORD not set; skipping ParentSquare posts")
 
+    snap = ROOT / "posts_snapshot.json"
+    if not posts and snap.exists():
+        # Until the automatic sign-in works, show a saved snapshot of posts.
+        saved = json.loads(snap.read_text())
+        posts = saved["posts"]
+        added = merge_post_events(events, saved["events"])
+        problems = [x for x in problems if not x.startswith("ParentSquare posts")]
+        problems.append(f"ParentSquare posts (showing a snapshot from {saved['taken']} until the ParentSquare sign-in is set up)")
+        print(f"Using posts snapshot from {saved['taken']}: {len(posts)} posts, {added} events added")
+
     if not events:
         print("No events fetched; leaving the existing site untouched.", *problems, sep="\n")
         sys.exit(1)
