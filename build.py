@@ -152,6 +152,21 @@ def main():
     else:
         print("PS_CALENDAR_TOKEN not set; skipping ParentSquare feeds")
 
+    posts = []
+    email = os.environ.get("PS_EMAIL", "").strip()
+    password = os.environ.get("PS_PASSWORD", "")
+    if email and password:
+        try:
+            import ps_posts
+            posts, post_events = ps_posts.fetch_posts(email, password, CONFIG["parentsquare_feeds"], TZ)
+            added = merge_post_events(events, post_events)
+            print(f"ParentSquare posts: {len(posts)} recent posts, {len(post_events)} dated items, {added} added to the calendar")
+        except Exception as exc:
+            problems.append(f"ParentSquare posts: {exc}")
+            print(f"ParentSquare posts failed: {exc}")
+    else:
+        print("PS_EMAIL / PS_PASSWORD not set; skipping ParentSquare posts")
+
     if not events:
         print("No events fetched; leaving the existing site untouched.", *problems, sep="\n")
         sys.exit(1)
@@ -166,6 +181,7 @@ def main():
         "groups": CONFIG["groups"],
         "problems": problems,
         "events": ordered,
+        "posts": posts,
     }
     OUT.mkdir(exist_ok=True)
     (OUT / "events.json").write_text(json.dumps(payload, indent=1, ensure_ascii=False))
@@ -175,6 +191,36 @@ def main():
     write_ics(ordered)
     (OUT / ".nojekyll").write_text("")
     print(f"Wrote {len(ordered)} events. Problems: {problems or 'none'}")
+
+
+STOP = {"the", "a", "an", "of", "at", "and", "for", "to", "in", "on", "day", "reminder", "cps", "wj", "wjjms", "jjis"}
+
+
+def words(text):
+    return {(w[:-1] if len(w) > 3 and w.endswith("s") else w) for w in re.findall(r"[a-z0-9]+", text.lower().replace("'", "")) if w not in STOP and len(w) > 1}
+
+
+def similar(a, b):
+    wa, wb = words(a), words(b)
+    if not wa or not wb:
+        return False
+    return len(wa & wb) / min(len(wa), len(wb)) >= 0.6
+
+
+def merge_post_events(events, post_events):
+    """Adds dated items found in posts unless the same thing is already on that day."""
+    by_day = {}
+    for ev in events.values():
+        by_day.setdefault(ev["start"][:10], []).append(ev)
+    added = 0
+    for ev in post_events:  # newest posts first, so the latest mention wins
+        day = ev["start"][:10]
+        if any(similar(ev["title"], other["title"]) for other in by_day.get(day, [])):
+            continue
+        events[(ev["uid"], ev["start"])] = ev
+        by_day.setdefault(day, []).append(ev)
+        added += 1
+    return added
 
 
 def write_ics(ordered):
