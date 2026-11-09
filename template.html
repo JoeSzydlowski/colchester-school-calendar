@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Colchester School Calendar</title>
 <meta name="claude:viewport-fit-sides" content="cover">
+<meta name="robots" content="noindex, nofollow">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
@@ -84,6 +85,8 @@ main .wrap { padding-block: 20px 48px; display: grid; gap: 20px; }
 .ev .meta { color: var(--muted); font-size: 0.86rem; display: flex; flex-wrap: wrap; gap: 4px 12px; font-variant-numeric: tabular-nums; }
 .tag { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--c); }
 .empty { color: var(--muted); padding: 24px 0; }
+.via { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; color: var(--muted); border: 1px solid var(--rule); border-radius: 4px; padding: 0 5px; }
+.notice { border: 1px solid var(--rule); border-left: 4px solid var(--wjjms); background: var(--card); border-radius: 8px; padding: 10px 14px; font-size: 0.9rem; }
 
 /* Month grid */
 .month { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; background: var(--card); }
@@ -119,6 +122,7 @@ footer { color: var(--muted); font-size: 0.82rem; }
     <div class="seg" role="group" aria-label="View">
       <button type="button" id="v-list" aria-pressed="true">Upcoming</button>
       <button type="button" id="v-month" aria-pressed="false">Month</button>
+      <button type="button" id="v-posts" aria-pressed="false">Posts</button>
     </div>
   </div>
 </header>
@@ -134,6 +138,9 @@ footer { color: var(--muted); font-size: 0.82rem; }
       <div class="nav" id="listnav">
         <h2 id="llabel">Coming up</h2>
         <button type="button" id="showPast">Show past events</button>
+      </div>
+      <div class="nav" id="postsnav" hidden>
+        <h2>ParentSquare posts</h2>
       </div>
       <div class="subscribe">
         <a class="linkbtn" id="subLink" href="calendar.ics">Add to my phone's calendar</a>
@@ -181,7 +188,7 @@ const DATA = /*__DATA__*/null;
   document.title = DATA.title;
   const upd = new Date(DATA.updated);
   document.getElementById("updated").textContent = "Updated " + fmtDay(upd, { weekday: "short", month: "short", day: "numeric" }) + " at " + timeOf(DATA.updated);
-  document.getElementById("foot").textContent = `${DATA.events.length} events from the Colchester Public Schools and WJ Johnston calendars (the same ones ParentSquare shows). Updates every morning. Click an event title to open it.`;
+  document.getElementById("foot").textContent = `${DATA.events.length} events from the Colchester Public Schools and WJ Johnston calendars${(DATA.posts || []).length ? " and recent ParentSquare posts" : ""}. Updates every morning. Click a title to open it; post links need a ParentSquare sign-in.`;
 
   const filters = document.getElementById("filters");
   const used = new Set(DATA.events.flatMap(e => e.groups));
@@ -201,7 +208,7 @@ const DATA = /*__DATA__*/null;
     const extra = [ev.location ? esc(ev.location) : "", ev.info ? `<a href="${esc(ev.info)}" target="_blank" rel="noopener">More info</a>` : ""].filter(Boolean).join(" · ");
     return `<div class="ev" style="--c:${color(g)}"><span class="stripe"></span><div>
       <div class="t"><a href="${esc(ev.link)}" target="_blank" rel="noopener">${esc(ev.title)}</a></div>
-      <div class="meta"><span>${when}</span>${tags}${extra ? `<span>${extra}</span>` : ""}</div></div></div>`;
+      <div class="meta"><span>${when}</span>${tags}${ev.via === "post" ? `<span class="via" title="${esc("From the post: " + ev.postTitle)}">From a post</span>` : ""}${extra ? `<span>${extra}</span>` : ""}</div></div></div>`;
   }
 
   function renderList() {
@@ -216,6 +223,20 @@ const DATA = /*__DATA__*/null;
       if (++count > 400) break;
     }
     return `<div class="agenda">${html || `<p class="empty">No events for the schools you picked.</p>`}</div>`;
+  }
+
+  function renderPosts() {
+    const posts = (DATA.posts || []).filter(p => p.groups.some(g => active.has(g)));
+    if (!posts.length) return `<p class="empty">${(DATA.posts || []).length ? "No posts for the schools you picked." : "No ParentSquare posts yet. They appear once the ParentSquare sign-in is saved."}</p>`;
+    let html = "", lastKey = "";
+    for (const p of posts) {
+      const k = p.posted.slice(0, 10), d = keyToDate(k);
+      const tags = p.groups.map(x => `<span class="tag" style="--c:${color(x)}">${esc(groups[x].short)}</span>`).join(" ");
+      const line = `<div class="ev" style="--c:${color(p.groups[0])}"><span class="stripe"></span><div><div class="t"><a href="${esc(p.link)}" target="_blank" rel="noopener">${esc(p.title)}</a></div><div class="meta"><span>Posted ${timeOf(p.posted)}</span>${tags}</div></div></div>`;
+      if (k !== lastKey) { if (lastKey) html += `</div></div>`; html += `<div class="day${k === todayKey ? " is-today" : ""}"><div class="date"><span class="dow">${k === todayKey ? "Today" : fmtDay(d, { weekday: "short" })}</span><span class="num">${d.getDate()}</span> <span class="mon">${fmtDay(d, { month: "short" })}</span></div><div class="events">`; lastKey = k; }
+      html += line;
+    }
+    return `<div class="agenda">${html}</div></div></div>`;
   }
 
   let cursor = keyToDate(todayKey); cursor.setDate(1);
@@ -241,11 +262,14 @@ const DATA = /*__DATA__*/null;
     for (const k of Object.keys(groups)) document.getElementById("f-" + k)?.setAttribute("aria-pressed", active.has(k));
     document.getElementById("v-list").setAttribute("aria-pressed", view === "list");
     document.getElementById("v-month").setAttribute("aria-pressed", view === "month");
+    document.getElementById("v-posts").setAttribute("aria-pressed", view === "posts");
+    document.getElementById("postsnav").hidden = view !== "posts";
     document.getElementById("monthnav").hidden = view !== "month";
     document.getElementById("listnav").hidden = view !== "list";
     document.getElementById("llabel").textContent = showPast ? "Past events" : "Coming up";
     document.getElementById("showPast").textContent = showPast ? "Show upcoming events" : "Show past events";
-    viewEl.innerHTML = view === "list" ? renderList() : renderMonth();
+    const notice = (DATA.problems || []).length ? `<p class="notice">Some sources couldn't be read in the last update: ${DATA.problems.map(esc).join("; ")}. The calendar shows everything else.</p>` : "";
+    viewEl.innerHTML = notice + (view === "list" ? renderList() : view === "month" ? renderMonth() : renderPosts());
   }
   viewEl.addEventListener("click", e => {
     const b = e.target.closest(".more"); if (!b) return;
@@ -254,6 +278,7 @@ const DATA = /*__DATA__*/null;
   });
   document.getElementById("v-list").onclick = () => { view = "list"; save(); render(); };
   document.getElementById("v-month").onclick = () => { view = "month"; save(); render(); };
+  document.getElementById("v-posts").onclick = () => { view = "posts"; save(); render(); };
   document.getElementById("showPast").onclick = () => { showPast = !showPast; render(); };
   document.getElementById("prev").onclick = () => { cursor.setMonth(cursor.getMonth() - 1); render(); };
   document.getElementById("next").onclick = () => { cursor.setMonth(cursor.getMonth() + 1); render(); };
