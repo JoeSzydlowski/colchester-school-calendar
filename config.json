@@ -1,0 +1,18 @@
+{
+  "site_title": "Colchester School Calendar",
+  "timezone": "America/New_York",
+  "school_year_start_month": 8,
+  "groups": {
+    "district": {"label": "District · JJIS & WJJMS", "short": "District", "color": "#5b6b7a"},
+    "jjis": {"label": "Jack Jackter Intermediate (5th)", "short": "JJIS", "color": "#1f7a5a"},
+    "wjjms": {"label": "William J. Johnston Middle (6th)", "short": "WJJMS", "color": "#b5541c"}
+  },
+  "google_calendars": [
+    {"id": "c_rbnd2ptmt351dfefo5vt69q49c@group.calendar.google.com", "name": "CPS Web Site Calendar", "group": "district"},
+    {"id": "c_9u6el72iko084tsnedgk2ql84o@group.calendar.google.com", "name": "WJJMS Event Calendar", "group": "wjjms"}
+  ],
+  "parentsquare_feeds": [
+    {"school_id": 20694, "name": "Jack Jackter Intermediate School", "group": "jjis"},
+    {"school_id": 20695, "name": "William J. Johnston Middle School", "group": "wjjms"}
+  ]
+}
