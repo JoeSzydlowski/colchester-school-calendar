@@ -25,7 +25,7 @@ LEAD_NUM = re.compile(rf"^\s*(?:{WEEKDAY}\s*)?{NUM_DATE}((?:\s*(?:&|and|,|-)\s*\
 WEEKDAY_NUM = re.compile(rf"\b{WEEKDAY}\s+{NUM_DATE}", re.I)
 NAME_RE = re.compile(rf"\b(?:{WEEKDAY}\s+)?{NAME_DATE}\b", re.I)
 TIME_RE = re.compile(r"\b(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)?\s*(?:-|–|to)\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)?(?![\d/])|\b(\d{1,2}):(\d{2})\s*(am|pm|a\.m\.|p\.m\.)?|\b(\d{1,2})\s*(am|pm)\b", re.I)
-NOISE = re.compile(r"^\[|day \d schedule|^\s*(posted|updated)\b", re.I)
+NOISE = re.compile(r"^\[|day \d schedule|^\s*(posted|updated)\b|^\s*(dates?|when|time)\s*:|\bbus(es)?\b", re.I)
 
 
 class LoginError(Exception):
@@ -185,6 +185,8 @@ def events_from_line(line, posted, is_title=False):
         return []
     found, spans = [], []
     m = LEAD_NUM.match(line)
+    if m and not (re.match(rf"^\s*{WEEKDAY}", line, re.I) or re.match(r"\s*[:\-–—|]", line[m.end():])):
+        m = None  # "2/21 will be combined" is a bus route, not a date
     if m:
         d = _resolve(int(m.group(1)), int(m.group(2)), m.group(3), posted)
         if d:
@@ -216,8 +218,10 @@ def events_from_line(line, posted, is_title=False):
     title = _clean_title(line, spans)
     if is_title:
         title = re.sub(r"\b(tomorrow|tonight|today)\b!?", "", title, flags=re.I)
-        title = re.sub(r"\s{2,}", " ", re.sub(r"^[\s:\-–—,&@|•!📢]+|[\s:\-–—,&@|•]+$", "", title)).strip() or line
-    if len(re.sub(r"[^A-Za-z]", "", title)) < 3:
+        title = re.sub(r"\s*[–—-]\s*,", " –", title)
+        title = re.sub(r"\s+([,!?])", r"\1", title)
+        title = re.sub(r"\s{2,}", " ", re.sub(r"^[\s:\-–—,&@|•!📢]+|[\s:\-–—,&@|•]+$", "", title)).strip()
+    if len(re.sub(r"[^A-Za-z]", "", title)) < 3 or title.lower().strip(" :") in {"date", "when", "time", "dates"}:
         return []
     start, end = _times(_blank(line, spans))
     return [(d, title, start, end) for d in sorted(set(found))]
