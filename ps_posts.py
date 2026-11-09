@@ -32,7 +32,7 @@ class LoginError(Exception):
     pass
 
 
-def login(email, password):
+def login(email, password, check_school_id):
     s = requests.Session()
     s.headers["User-Agent"] = "Mozilla/5.0 (school-calendar; personal use)"
     page = s.get(f"{BASE}/signin", timeout=30)
@@ -46,11 +46,14 @@ def login(email, password):
     data["session[password]"] = password
     r = s.post(f"{BASE}/sessions", data=data, timeout=30)
     r.raise_for_status()
-    if "/signin" in r.url or 'name="session[password]"' in r.text:
-        raise LoginError("ParentSquare did not accept the saved email/password.")
-    if re.search(r"verification code|verify your", r.text, re.I) and "feed" not in r.url:
-        raise LoginError("ParentSquare asked for a verification code, so the automatic sign-in can't finish.")
-    return s
+    # ParentSquare's home page always shows a sign-in box, so confirm the
+    # sign-in by opening a school's post feed instead.
+    check = s.get(f"{BASE}/schools/{check_school_id}/feeds", timeout=30)
+    if check.status_code == 200 and "/signin" not in check.url and "feed-title-" in check.text:
+        return s
+    print(f"Sign-in check: POST landed on {r.url.split('?')[0]}, feed check landed on {check.url.split('?')[0]} ({check.status_code})")
+    raise LoginError("ParentSquare sign-in didn't work. Either the saved email/password is wrong, "
+                     "or ParentSquare asked for an extra verification step.")
 
 
 BLOCKS = {"p", "div", "li", "tr", "td", "h1", "h2", "h3", "h4", "h5", "h6", "table", "ul", "ol", "blockquote", "section"}
@@ -222,7 +225,7 @@ def events_from_line(line, posted, is_title=False):
 
 def fetch_posts(email, password, feeds, tz, days_back=45, pages=4):
     """Returns (posts, events). feeds: [{school_id, group, name}]."""
-    session = login(email, password)
+    session = login(email, password, feeds[0]["school_id"])
     cutoff = dt.datetime.now(tz) - dt.timedelta(days=days_back)
     seen = {}
     for feed in feeds:
